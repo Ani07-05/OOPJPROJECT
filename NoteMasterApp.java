@@ -123,6 +123,7 @@ class TextNote extends Note {
 
 
 // --- GUI Components ---
+// --- GUI Components ---
 class MainWindow extends JFrame {
     private NoteManager noteManager = new NoteManager();
     private DefaultListModel<String> listModel = new DefaultListModel<>();
@@ -130,9 +131,11 @@ class MainWindow extends JFrame {
     private JTextArea noteContentArea = new JTextArea();
     private JButton saveButton = new JButton("Save Changes");
     private Note currentNote = null;
+    private JPanel welcomePanel;
+    private JPanel notePanel;
 
     public MainWindow() {
-        setTitle("NoteMaster App");
+        setTitle("VakyaVault");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -141,18 +144,29 @@ class MainWindow extends JFrame {
         // Apply Dark Theme
         applyDarkTheme();
 
-        // Setup Panels
-        JPanel panel = new JPanel(new BorderLayout());
-        JButton addTextNoteButton = new JButton("Add Text Note");
-        JButton removeNoteButton = new JButton("Remove Selected Note");
+        // Welcome Panel (Shown initially)
+        welcomePanel = new JPanel();
+        welcomePanel.setLayout(new BoxLayout(welcomePanel, BoxLayout.Y_AXIS));
+        welcomePanel.setBackground(Color.BLACK);
 
+        JLabel titleLabel = new JLabel("VakyaVAULT", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Serif", Font.BOLD, 36));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton addTextNoteButton = new JButton("Create New Note");
+        addTextNoteButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         addTextNoteButton.addActionListener(e -> addTextNote());
-        removeNoteButton.addActionListener(e -> removeSelectedNote());
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(addTextNoteButton);
-        buttonPanel.add(removeNoteButton);
-        buttonPanel.setBackground(Color.DARK_GRAY);
+        welcomePanel.add(Box.createVerticalGlue());
+        welcomePanel.add(titleLabel);
+        welcomePanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        welcomePanel.add(addTextNoteButton);
+        welcomePanel.add(Box.createVerticalGlue());
+
+        // Note Editing Panel (Hidden initially)
+        notePanel = new JPanel(new BorderLayout());
+        notePanel.setBackground(Color.BLACK);
 
         noteContentArea.setEditable(false);
         noteContentArea.setLineWrap(true);
@@ -160,29 +174,25 @@ class MainWindow extends JFrame {
         noteContentArea.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         noteList.addListSelectionListener(e -> displaySelectedNote());
-
         saveButton.addActionListener(e -> saveChanges());
-        saveButton.setVisible(false);  // Initially hidden until a note is selected
+        saveButton.setVisible(false);
 
-        // Add components to main panel
-        panel.add(buttonPanel, BorderLayout.NORTH);
-        panel.add(new JScrollPane(noteList), BorderLayout.WEST);
-        panel.add(new JScrollPane(noteContentArea), BorderLayout.CENTER);
-        panel.add(saveButton, BorderLayout.SOUTH);
+        notePanel.add(new JScrollPane(noteList), BorderLayout.WEST);
+        notePanel.add(new JScrollPane(noteContentArea), BorderLayout.CENTER);
+        notePanel.add(saveButton, BorderLayout.SOUTH);
 
-        add(panel);
-        updateNoteList();
+        // Set initial view to welcomePanel
+        setLayout(new BorderLayout());
+        add(welcomePanel, BorderLayout.CENTER);
     }
 
-
-    // this method creates a new text note by taking input from the user for the title and content of the note. It then creates a new TextNote object and adds it to the note manager.
     private void addTextNote() {
+        // Prompt for a new note
         JTextField titleField = new JTextField(20);
         JTextArea contentArea = new JTextArea(10, 20);
         contentArea.setLineWrap(true);
         contentArea.setWrapStyleWord(true);
 
-        // Apply Dark Theme to input fields
         titleField.setBackground(Color.DARK_GRAY);
         titleField.setForeground(Color.WHITE);
         contentArea.setBackground(Color.DARK_GRAY);
@@ -193,33 +203,29 @@ class MainWindow extends JFrame {
         inputPanel.add(titleField, BorderLayout.CENTER);
         inputPanel.add(new JScrollPane(contentArea), BorderLayout.SOUTH);
 
-        // Show input dialog to get title and content of the note
-
         int result = JOptionPane.showConfirmDialog(this, inputPanel, "New Text Note", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-        // If user clicks OK, create a new TextNote object and add it to the note manager
         if (result == JOptionPane.OK_OPTION) {
             String title = titleField.getText();
             String content = contentArea.getText();
             if (!title.isEmpty() && !content.isEmpty()) {
-                Note note = new TextNote(title, content); // Polymorphism: using Note reference
+                Note note = new TextNote(title, content);
                 noteManager.addNote(note);
                 updateNoteList();
+                showNotePanel(); // Switch to the note editing panel
             }
         }
     }
 
-
-    // this method removes the selected note from the note manager and updates the note list. It also clears the note content area and hides the save button.
     private void removeSelectedNote() {
-        int selectedIndex = noteList.getSelectedIndex(); // Get the index of the selected note
-        if (selectedIndex != -1) {  // If a note is selected in the list view (not -1) then remove it from the note manager
+        int selectedIndex = noteList.getSelectedIndex();
+        if (selectedIndex != -1) {
             String selectedNoteTitle = noteList.getSelectedValue();
             Note note = noteManager.getAllNotes().stream()
                     .filter(n -> n.getTitle().equals(selectedNoteTitle))
                     .findFirst()
                     .orElse(null);
-            if (note != null) { // If the note is found, remove it from the note manager and update the list view and clear the note content area
+            if (note != null) {
                 noteManager.removeNoteById(note.getId());
                 updateNoteList();
                 noteContentArea.setText("");
@@ -228,11 +234,9 @@ class MainWindow extends JFrame {
         }
     }
 
-    // this method displays the content of the selected note in the note content area. It also enables the save button to save changes made to the note.
-
     private void displaySelectedNote() {
-        String selectedTitle = noteList.getSelectedValue(); // Get the title of the selected note
-        currentNote = noteManager.getAllNotes().stream() 
+        String selectedTitle = noteList.getSelectedValue();
+        currentNote = noteManager.getAllNotes().stream()
                 .filter(n -> n.getTitle().equals(selectedTitle))
                 .findFirst()
                 .orElse(null);
@@ -241,14 +245,15 @@ class MainWindow extends JFrame {
             noteContentArea.setText(((TextNote) currentNote).getContent());
             noteContentArea.setEditable(true);
             saveButton.setVisible(true);
+            showNotePanel(); // Switch to the note editing panel
         }
     }
 
     private void saveChanges() {
         if (currentNote != null && currentNote instanceof TextNote) {
             ((TextNote) currentNote).setContent(noteContentArea.getText());
-            noteManager.addNote(currentNote);  // Update the note content in the manager
-            noteManager.loadNotes();  // Reload to save the changes
+            noteManager.addNote(currentNote);
+            noteManager.loadNotes();
             JOptionPane.showMessageDialog(this, "Changes saved!");
         }
     }
@@ -261,7 +266,6 @@ class MainWindow extends JFrame {
     }
 
     private void applyDarkTheme() {
-        // Set dark theme for main window and text area
         getContentPane().setBackground(Color.BLACK);
         noteContentArea.setBackground(Color.BLACK);
         noteContentArea.setForeground(Color.WHITE);
@@ -272,5 +276,13 @@ class MainWindow extends JFrame {
         noteList.setSelectionForeground(Color.WHITE);
         saveButton.setBackground(Color.GRAY);
         saveButton.setForeground(Color.WHITE);
+    }
+
+    private void showNotePanel() {
+        // Remove the welcomePanel and display the notePanel
+        remove(welcomePanel);
+        add(notePanel, BorderLayout.CENTER);
+        revalidate();
+        repaint();
     }
 }
